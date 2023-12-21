@@ -1,0 +1,6 @@
+raw_data/
+helpers/
+logs/
+.env
+.gitignore
+.dockerignore
