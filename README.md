@@ -69,6 +69,7 @@ This project is part of the Data Engineering course, focused on designing and im
    - Log in using the credentials provided in the `.env` file.
 
 5. **Setting Up the Database in pgAdmin**
+
    - In pgAdmin, right-click on 'Servers' -> 'Create' -> 'Server'.
    - Under the 'General' tab, give your server a name.
    - In the 'Connection' tab, set:
@@ -78,6 +79,11 @@ This project is part of the Data Engineering course, focused on designing and im
      - Username: (as specified in `.env` under `POSTGRES_USER`)
      - Password: (as specified in `.env` under `POSTGRES_PASSWORD`)
    - Click 'Save' to establish the connection.
+
+6. **Setting Up AirFlow**
+
+- Run the initialization script (`init_airflow.sh` or `init_airflow.bat` depending on the platform) to set up their local Airflow environment.
+- Run 'docker-compose up --build -d' to build the new containers and start Airflow.
 
 ### Next Steps
 
