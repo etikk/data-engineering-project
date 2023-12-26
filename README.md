@@ -80,7 +80,14 @@ This project is part of the Data Engineering course, focused on designing and im
      - Password: (as specified in `.env` under `POSTGRES_PASSWORD`)
    - Click 'Save' to establish the connection.
 
-6. **Setting Up AirFlow**
+6. **Accessing Neo4J Browser**
+
+   - Open a web browser and navigate to `http://localhost:7474`.
+   - Log in using the credentials specified in the `.env` file (`NEO4J_USERNAME` and `NEO4J_PASSWORD`).
+   - You can utilize the Neo4J import directory (`/var/lib/neo4j/import`) to import your data if needed. We have a DAG for import in AirFlow.
+   - You can use Cypher queries within the Neo4J Browser or connect via a Neo4j client in your application.
+
+7. **Setting Up AirFlow**
 
 - Run the initialization script (`init_airflow.sh` or `init_airflow.bat` depending on the platform) to set up their local Airflow environment.
 - Run 'docker-compose up --build -d' to build the new containers and start Airflow.
