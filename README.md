@@ -51,9 +51,10 @@ This project is part of the Data Engineering course, focused on designing and im
    - Clone the project repository to your local machine.
    - Navigate to the project directory.
 
-2. **Add the `.env` File**
+2. **The `.env` File**
 
-   - Place the `.env` file provided by the project maintainer in the root of the project directory.
+   - We have added the `.env` file to git as this is a educational project with no sensitive data.
+   - In a production environment, uncomment the .env line in .gitignore and change all the passwords.
 
 3. **Build and Run Docker Containers**
 

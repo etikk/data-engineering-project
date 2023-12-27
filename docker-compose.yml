@@ -27,6 +27,15 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW_USERNAME=${AIRFLOW_USERNAME}
+      - AIRFLOW_FIRSTNAME=${AIRFLOW_FIRSTNAME}
+      - AIRFLOW_LASTNAME=${AIRFLOW_LASTNAME}
+      - AIRFLOW_ROLE=${AIRFLOW_ROLE}
+      - AIRFLOW_EMAIL=${AIRFLOW_EMAIL}
+      - AIRFLOW_PASSWORD=${AIRFLOW_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - "8080:8080"
     depends_on:
@@ -35,7 +44,8 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./raw_data:/path/in/container/raw_data
+      # - ./config/airflow.cfg:/opt/airflow/airflow.cfg
+      - ./raw_data:/app/raw_data
     command: webserver
 
   airflow-scheduler:
@@ -44,13 +54,24 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW_USERNAME=${AIRFLOW_USERNAME}
+      - AIRFLOW_FIRSTNAME=${AIRFLOW_FIRSTNAME}
+      - AIRFLOW_LASTNAME=${AIRFLOW_LASTNAME}
+      - AIRFLOW_ROLE=${AIRFLOW_ROLE}
+      - AIRFLOW_EMAIL=${AIRFLOW_EMAIL}
+      - AIRFLOW_PASSWORD=${AIRFLOW_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
       - db
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./raw_data:/path/in/container/raw_data
+      # - ./config/airflow.cfg:/opt/airflow/airflow.cfg
+      - ./raw_data:/app/raw_data
+    command: scheduler
 
   neo4j:
     image: neo4j:latest
