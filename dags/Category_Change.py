@@ -23,6 +23,8 @@ json_dir_path = os.path.join(parent_dir, 'raw_data')
 # Specify the csv directory path
 csv_dir_path = os.path.join(parent_dir, 'helpers','_Cat_Csv.csv')
 
+crossref_path = os.path.join(parent_dir, 'helpers','Citations_Pubtype.json')
+
 
 # Get a list of all files in the directory
 json_files = os.listdir(json_dir_path)
@@ -48,6 +50,7 @@ for i,json_file in enumerate(json_files):
     json_df = json_df.explode('categories')
 
     csv_df = pd.read_csv(csv_dir_path, delimiter=";")
+    crossref_df = pd.read_json(crossref_path, lines=True)
     merged_df = pd.merge(json_df, csv_df,how='left', left_on='categories', right_on='Category_Id')
 
 
@@ -67,8 +70,15 @@ for i,json_file in enumerate(json_files):
 
     results_df = results_df.drop_duplicates(subset='title')
 
+    crossref_df = crossref_df.explode('Title')
+
+    ref_merge = pd.merge(results_df, crossref_df,how='left', left_on='title', right_on='Title')
+
+    ref_merge = ref_merge.drop(columns =['Title'])
+    #print(ref_merge)
+
     output_file = f'new_partition_{i}.json'
-    results_df.to_json(output_file, orient='records', lines=True)
+    ref_merge.to_json(output_file, orient='records', lines=True)
 
 #with open('katse.json', 'w') as f:
 #    json.dump(results_df, f)
@@ -82,4 +92,5 @@ dag = DAG('category_enrichment', description='Enrich JSON files with Category in
 
 # Define PythonOperator
 process_json_operator = PythonOperator(task_id='category_json_files', python_callable=process_json_files, dag=dag)
+
 
