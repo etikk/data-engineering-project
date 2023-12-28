@@ -5,7 +5,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 
-def load_data():
+def load_data_to_postgres():
     dbname = os.getenv("POSTGRES_DB")
     user = os.getenv("POSTGRES_USER")
     password = os.getenv("POSTGRES_PASSWORD")
@@ -16,10 +16,9 @@ def load_data():
     cur = conn.cursor()
 
     # SQL statement to create the table if it doesn't exist
-    # Adjust column data types according to your data
     create_table_query = """
     CREATE TABLE IF NOT EXISTS test_table (
-        id TEXT,
+        id TEXT PRIMARY KEY,
         submitter TEXT,
         authors TEXT,
         title TEXT,
@@ -38,16 +37,19 @@ def load_data():
     with open('/app/raw_data/chunk_1.json') as f:
         data = json.load(f)
 
-    data = data[:10]
-
-    keys = ['id', 'submitter', 'authors', 'title', 'comments', 'journal_ref', 'doi', 'report_no', 'categories', 'license', 'abstract', 'update_date']
-    columns = ', '.join(keys)
-    placeholders = ', '.join(['%s'] * len(keys))
-    query = "INSERT INTO test_table (%s) VALUES (%s)" % (columns, placeholders)
+    # data = data[:1000]
 
     for item in data:
-        values = tuple(item.get(key) for key in keys)
-        cur.execute(query, values)
+        # Check if the record with the same 'id' exists
+        cur.execute("SELECT id FROM test_table WHERE id = %s", (item['id'],))
+        if cur.fetchone() is None:
+            # Insert the record if it doesn't exist
+            keys = ['id', 'submitter', 'authors', 'title', 'comments', 'journal_ref', 'doi', 'report_no', 'categories', 'license', 'abstract', 'update_date']
+            columns = ', '.join(keys)
+            placeholders = ', '.join(['%s'] * len(keys))
+            query = "INSERT INTO test_table (%s) VALUES (%s)" % (columns, placeholders)
+            values = tuple(item.get(key) for key in keys)
+            cur.execute(query, values)
 
     conn.commit()
     cur.close()
@@ -65,14 +67,14 @@ default_args = {
 }
 
 dag = DAG(
-    'load_data_dag',
+    'load_data_to_postgres',
     default_args=default_args,
     description='A simple DAG to load data from a JSON file into a PostgreSQL database',
     schedule_interval=timedelta(days=1),
 )
 
 load_data_task = PythonOperator(
-    task_id='load_data',
-    python_callable=load_data,
+    task_id='load_data_to_postgres',
+    python_callable=load_data_to_postgres,
     dag=dag,
 )
