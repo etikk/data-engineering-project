@@ -1,14 +1,15 @@
 import requests
 import json
 import os
+import pandas as pd
 #from Get_Samples_For_Citations import extract_values
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 
 def process_json_files():
-    input_folder = '/path/to/airflow/Wrangle'
-    output_folder = '/path/to/airflow/Enrich'
+    input_folder = '/path/to/airflow/Raw_Data'
+    output_folder = '/path/to/airflow/Enriched_Data'
 
 def extract_values(cat, titl):
     directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'raw_data')
