@@ -10,17 +10,17 @@ CREATE TABLE IF NOT EXISTS public."Article"
     "Comment" text,
     "Digital_Obj_Id" text,
     "Version_Id" integer,
-    "Sub_Category" text,
-    "Journal-ref" text,
-    "Reference_Count" integer,
+    "Category_Id" integer,
+    "Abstract" text,
     PRIMARY KEY ("Article_Id")
 );
 
 CREATE TABLE IF NOT EXISTS public."Publications"
 (
-    "Update_Date" date,
+    "Date" date,
     "Article_Id" integer,
-    "Author_Id" integer
+    "Author_Id" integer,
+    "Reference_Id" integer
 );
 
 CREATE TABLE IF NOT EXISTS public."Version"
@@ -31,11 +31,11 @@ CREATE TABLE IF NOT EXISTS public."Version"
     PRIMARY KEY ("Version_Id")
 );
 
-CREATE TABLE IF NOT EXISTS public."SubCategory"
+CREATE TABLE IF NOT EXISTS public."Category"
 (
-    "SubCategory" text,
-    "Main_Category" text,
-    PRIMARY KEY ("SubCategory")
+    "Category_Id" integer,
+    "Category_Desc" date,
+    PRIMARY KEY ("Category_Id")
 );
 
 CREATE TABLE IF NOT EXISTS public."Author"
@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS public."Author"
 
 CREATE TABLE IF NOT EXISTS public."Reference"
 (
-    "Journal_Ref" text,
-    "Reference_Type" text,
-    PRIMARY KEY ("Journal_Ref")
+    "Reference_Id" integer,
+    "Referencing_Article_Id" integer,
+    PRIMARY KEY ("Reference_Id")
 );
 
 ALTER TABLE IF EXISTS public."Article"
@@ -62,16 +62,8 @@ ALTER TABLE IF EXISTS public."Article"
 
 
 ALTER TABLE IF EXISTS public."Article"
-    ADD CONSTRAINT "Cat" FOREIGN KEY ("Sub_Category")
-    REFERENCES public."SubCategory" ("SubCategory") MATCH SIMPLE
-    ON UPDATE NO ACTION
-    ON DELETE NO ACTION
-    NOT VALID;
-
-
-ALTER TABLE IF EXISTS public."Article"
-    ADD CONSTRAINT "Ref" FOREIGN KEY ("Journal-ref")
-    REFERENCES public."Reference" ("Journal_Ref") MATCH SIMPLE
+    ADD CONSTRAINT "Cat" FOREIGN KEY ("Category_Id")
+    REFERENCES public."Category" ("Category_Id") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION
     NOT VALID;
@@ -88,6 +80,14 @@ ALTER TABLE IF EXISTS public."Publications"
 ALTER TABLE IF EXISTS public."Publications"
     ADD CONSTRAINT "Author" FOREIGN KEY ("Author_Id")
     REFERENCES public."Author" ("Author_Id") MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION
+    NOT VALID;
+
+
+ALTER TABLE IF EXISTS public."Publications"
+    ADD CONSTRAINT "Reference" FOREIGN KEY ("Reference_Id")
+    REFERENCES public."Reference" ("Reference_Id") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION
     NOT VALID;
