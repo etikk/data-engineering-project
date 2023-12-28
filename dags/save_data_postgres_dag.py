@@ -5,7 +5,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 
-def load_data_to_postgres():
+def save_data_to_postgres():
     dbname = os.getenv("POSTGRES_DB")
     user = os.getenv("POSTGRES_USER")
     password = os.getenv("POSTGRES_PASSWORD")
@@ -67,14 +67,14 @@ default_args = {
 }
 
 dag = DAG(
-    'load_data_to_postgres',
+    'save_data_to_postgres',
     default_args=default_args,
-    description='A simple DAG to load data from a JSON file into a PostgreSQL database',
+    description='A simple DAG to save data from a JSON file into a PostgreSQL database',
     schedule_interval=timedelta(days=1),
 )
 
-load_data_task = PythonOperator(
-    task_id='load_data_to_postgres',
-    python_callable=load_data_to_postgres,
+save_data_task = PythonOperator(
+    task_id='save_data_to_postgres',
+    python_callable=save_data_to_postgres,
     dag=dag,
 )

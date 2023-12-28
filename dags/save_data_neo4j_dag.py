@@ -13,7 +13,7 @@ def serialize_non_primitive(item):
             item[key] = [str(i) for i in value]  # Convert list items to strings if they are not primitive
     return item
 
-def load_data_to_neo4j():
+def save_data_to_neo4j():
     uri = "bolt://neo4j:7687"  # Replace with your Neo4j instance URI
     user = "neo4j"  # Default username for Neo4j
     password = os.getenv("NEO4J_PASSWORD")
@@ -54,14 +54,14 @@ default_args = {
 }
 
 dag = DAG(
-    'load_data_to_neo4j_dag',
+    'save_data_to_neo4j_dag',
     default_args=default_args,
-    description='A simple DAG to load data from a JSON file into a Neo4j database',
+    description='A simple DAG to save data from a JSON file into a Neo4j database',
     schedule_interval=timedelta(days=1),
 )
 
-load_data_to_neo4j_task = PythonOperator(
-    task_id='load_data_to_neo4j',
-    python_callable=load_data_to_neo4j,
+save_data_to_neo4j_task = PythonOperator(
+    task_id='save_data_to_neo4j',
+    python_callable=save_data_to_neo4j,
     dag=dag,
 )
