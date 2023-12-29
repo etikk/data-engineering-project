@@ -66,26 +66,30 @@ def save_data_to_neo4j():
 
             # MERGE for Category_List
             if item_with_underscores.get('Category_List'):
+                category_list = [item for item in item_with_underscores['Category_List'] if item is not None]
                 category_list_query = """
                     MERGE (b:Title {Title: $title})
                     WITH b, $Category_List AS categories
+                    WITH b, categories WHERE categories IS NOT NULL
                     MERGE (d:Category_List {Category_List: categories}) 
                     ON CREATE SET d.Category_List = categories
                     MERGE (b)-[:IS_CATEGORIZED_AS]->(d)
                 """
-                session.run(category_list_query,title=item_with_underscores['title'], Category_List=item_with_underscores['Category_List'])
+                session.run(category_list_query,title=item_with_underscores['title'], Category_List=category_list)
 
             # Cypher query for Disciplines
             if item_with_underscores.get('Disciplines'):
+                discipline_list = [item for item in item_with_underscores['Disciplines'] if item is not None]
                 disciplines_query = """
                     MERGE (b:Title {Title: $title})
                     WITH b, $disciplines AS disciplines
+                    WITH b, disciplines WHERE disciplines IS NOT NULL
                     UNWIND disciplines AS discipline
                     MERGE (f:Discipline {Discipline: discipline})
                     ON CREATE SET f.Discipline = discipline
                     MERGE (b)-[:IS_IN_DISCIPLINE]->(f)
                 """
-                session.run(disciplines_query, title=item_with_underscores['title'],disciplines=item_with_underscores['Disciplines'])
+                session.run(disciplines_query, title=item_with_underscores['title'],disciplines=discipline_list)
 
             # Cypher query for Referenced_In_Journal with weight
             if item_with_underscores.get('journal_ref'):
