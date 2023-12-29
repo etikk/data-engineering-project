@@ -1,0 +1,5 @@
+CREATE CONSTRAINT FOR (a:Author) REQUIRE a.Name IS UNIQUE;
+CREATE CONSTRAINT FOR (a:Category_List) REQUIRE a.categories IS UNIQUE;
+CREATE CONSTRAINT FOR (a:Discipline ) REQUIRE a.discipline IS UNIQUE;
+CREATE CONSTRAINT FOR (a:Journal_Reference) REQUIRE a.journal_ref IS UNIQUE;
+
