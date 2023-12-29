@@ -3,5 +3,6 @@ CREATE CONSTRAINT  IF NOT EXISTS FOR  (a:Category_List) REQUIRE a.Category_List 
 CREATE CONSTRAINT  IF NOT EXISTS FOR  (a:Discipline ) REQUIRE a.discipline IS UNIQUE;
 CREATE CONSTRAINT  IF NOT EXISTS FOR  (a:Journal_Reference) REQUIRE a.Journal_Reference IS UNIQUE;
 CREATE CONSTRAINT  IF NOT EXISTS FOR  (a:Journal_Reference) REQUIRE a.Publication_Type IS UNIQUE;
+CREATE CONSTRAINT  IF NOT EXISTS FOR  (a:Journal_Reference) REQUIRE a.Publication_Type IS UNIQUE;
 
 

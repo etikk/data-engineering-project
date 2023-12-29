@@ -32,34 +32,37 @@ def save_data_to_neo4j():
     with driver.session() as session:
         for item in data:
             # Handle non-primitive types and hyphens
-            item = serialize_non_primitive(item)
+            #item = serialize_non_primitive(item)
             item_with_underscores = {key.replace('-', '_'): value for key, value in item.items()}
             if item_with_underscores.get('authors_parsed'):
                 authors_parsed_query = """
+                    WITH $authors_parsed AS authors
+                    UNWIND authors AS author
+                    WITH author WHERE author IS NOT NULL
+                    WITH author WHERE author[0] IS NOT NULL
+                    MERGE (c:Author {FirstName: author[1], LastName: author[0], Name: author[0] + ' ' + author[1]})
                     MERGE (b:Title {Title: $title})
-                    WITH b, $authors_parsed AS authors_parsed
-                    UNWIND authors_parsed AS author_parsed
-                    MERGE (a:Author {Name: author_parsed})
-                    ON CREATE SET a.Name = author_parsed
-                    MERGE (a)-[:Authored]->(b)
+                    MERGE (c)-[:SUBMITTED]->(b)
                 """
 
-                #MERGE (a:Author {firstName: author_parsed[1], lastName: author_parsed[0]})
+                # UNWIND author_parsed AS final_author_parse
+                #MERGE (a:Author {firstName: final_author_parse[1], lastName: final_author_parse[0],Name:final_author_parse})
 
                 session.run(authors_parsed_query, title=item_with_underscores['title'], authors_parsed=item_with_underscores['authors_parsed'])
 
 
             if item_with_underscores.get('submitter'):
                 submitter_parsed_query = """
+                    WITH $submitter_parsed AS sub_parsed
+                    UNWIND range(0, size(sub_parsed) - 2, 2) AS i
+                    WITH sub_parsed,i  WHERE sub_parsed IS NOT NULL
+                    WITH sub_parsed,i  WHERE sub_parsed[i] IS NOT NULL
+                    MERGE (c:Author {LastName: sub_parsed[i], FirstName: sub_parsed[i + 1], Name: sub_parsed[i] + ' ' + sub_parsed[i + 1]})
                     MERGE (b:Title {Title: $title})
-                    WITH b, $submitter AS submitter_parsed
-                    UNWIND submitter_parsed AS new_submitter_parsed
-                    MERGE (c:Author {Name: new_submitter_parsed})
-                    ON CREATE SET c.Name = new_submitter_parsed
                     MERGE (c)-[:SUBMITTED]->(b)
                 """
                 #MERGE (c:Author {firstName: submitter_parsed[1], lastName: submitter_parsed[0]})
-                session.run(submitter_parsed_query,title=item_with_underscores['title'], submitter=item_with_underscores['submitter'])
+                session.run(submitter_parsed_query,title=item_with_underscores['title'], submitter_parsed=item_with_underscores['submitter_parsed'])
 
             # MERGE for Category_List
             if item_with_underscores.get('Category_List'):

@@ -45,6 +45,9 @@ def augment_with_categories(**kwargs):
     results_df = results_df.drop_duplicates(subset='title')
     ref_merge = pd.merge(results_df, crossref_df, how='left', left_on='title', right_on='Title')
     ref_merge = ref_merge.drop(columns=['Title'])
+    ref_merge[['first_name', 'last_name']] = ref_merge['submitter'].str.rsplit(' ', n=1, expand=True)
+    ref_merge['submitter_parsed'] = ref_merge[['last_name', 'first_name']].values.tolist()
+    ref_merge = ref_merge.drop(columns =['last_name','first_name'])
 
     # Define the path for the output JSON file
     output_json_path = os.path.join('/app/temp_data', f'chunk_categories.json')
