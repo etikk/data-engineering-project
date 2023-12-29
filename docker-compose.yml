@@ -47,7 +47,8 @@ services:
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./raw_data:/app/raw_data
-    #command: webserver
+      - ./temp_data:/app/temp_data
+      - ./helpers:/app/helpers
     command: ["airflow", "webserver"]
 
   airflow-scheduler:
@@ -74,7 +75,8 @@ services:
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./raw_data:/app/raw_data
-    #command: scheduler
+      - ./temp_data:/app/temp_data
+      - ./helpers:/app/helpers
     command: ["airflow", "scheduler"]
 
   neo4j:

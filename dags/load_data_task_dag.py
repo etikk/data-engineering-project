@@ -23,11 +23,7 @@ default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2022, 1, 1),
-    'email': [os.getenv("AIRFLOW_EMAIL")],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'emtry_delay': timedelta(minutes=5),
 }
 
 # Define the DAG
@@ -48,4 +44,8 @@ load_data_operator = PythonOperator(
 )
 
 # Here, you can set up further tasks and define their dependencies
-set_downstream >> data_augmentation_dag
+load_data_operator >> data_augmentation_operatorail': [os.getenv("AIRFLOW_EMAIL")],
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    're

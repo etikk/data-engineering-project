@@ -1,4 +1,5 @@
 raw_data/
+temp_data/
 helpers/
 logs/
 .env
