@@ -407,7 +407,8 @@ create_postgres_tables_task = PythonOperator(
     dag=dag,
 )
 
-file_tasks = []
+metadata_setup_task = load_and_start_pipelines_task >> create_postgres_tables_task
+
 
 # Define tasks for each file
 for file_name in os.listdir('/app/raw_data'):
@@ -449,7 +450,6 @@ for file_name in os.listdir('/app/raw_data'):
         )
 
         # Set up the task dependencies
-        file_task = filter_publications_task >> augment_with_categories_task >> augment_with_citations_task >> save_to_postgres_task >> save_to_neo4j_task
-        file_tasks.append(file_task)
-
-load_and_start_pipelines_task >> create_postgres_tables_task >> file_tasks
+        preprocess_task = metadata_setup_task >> filter_publications_task >> augment_with_categories_task >> augment_with_citations_task
+        preprocess_task >> save_to_postgres_task
+        preprocess_task >> save_to_neo4j_task
