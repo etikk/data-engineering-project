@@ -42,7 +42,7 @@ def save_data_to_neo4j():
                     WITH author WHERE author[0] IS NOT NULL
                     MERGE (c:Author {FirstName: author[1], LastName: author[0], Name: author[0] + ' ' + author[1]})
                     MERGE (b:Title {Title: $title})
-                    MERGE (c)-[:Authored]->(b)
+                    MERGE (c)-[:AUTHORED]->(b)
                 """
 
                 # UNWIND author_parsed AS final_author_parse
