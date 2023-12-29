@@ -17,10 +17,10 @@ echo "POSTGRES_USER : $POSTGRES_USER"
 echo "POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
 
 # Initialize Airflow DB
-docker-compose exec airflow-webserver airflow db init  
+docker compose exec airflow-webserver airflow db init
 
 # Create Airflow user
-docker-compose exec airflow-webserver airflow users create \
+docker compose exec airflow-webserver airflow users create \
   --username $AIRFLOW_USERNAME \
   --password $AIRFLOW_PASSWORD \
   --firstname $AIRFLOW_FIRSTNAME \

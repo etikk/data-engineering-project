@@ -141,6 +141,12 @@ def create_postgres_tables():
         );
     """)
 
+    # add index to article title
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS article_title_idx ON article (title);
+    """)
+
+
     # Create the author table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS author (
@@ -149,6 +155,12 @@ def create_postgres_tables():
             is_submitter BOOLEAN
         );
     """)
+
+    # add index to author full_name
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS author_full_name_idx ON author (full_name);
+    """)
+
 
     # Create the reference table
     cur.execute("""
@@ -159,6 +171,12 @@ def create_postgres_tables():
         );
     """)
 
+    # add index to reference journal_ref
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS reference_journal_ref_idx ON reference (journal_ref);
+    """)
+
+
     # Create the subcategory table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS subcategory (
@@ -166,6 +184,11 @@ def create_postgres_tables():
             subcategory TEXT,
             main_category TEXT
         );
+    """)
+
+    # add index to subcategory subcategory
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS subcategory_subcategory_idx ON subcategory (subcategory);
     """)
 
     # Create the publications table
@@ -178,6 +201,11 @@ def create_postgres_tables():
         );
     """)
 
+    # add index to publications (article_id, author_id)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS publications_article_id_author_id_idx ON publications (article_id, author_id);
+    """)
+
     # Create the version table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS version (
@@ -186,6 +214,12 @@ def create_postgres_tables():
         version_number TEXT
     )
     """)
+
+    # add index to version (creation_date, version_number)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS version_creation_date_version_number_idx ON version (creation_date, version_number);
+    """)
+
 
     # Commit changes and close the connection
     conn.commit()
@@ -332,9 +366,9 @@ def save_to_neo4j(**kwargs):
                     MERGE (e:Journal_Reference {Journal_Reference: coalesce(journal_ref, 'Unknown'), Publication_Type: coalesce(publication_type, 'Unknown')})
                     MERGE (b)-[r:Referenced_In_Journal]->(e)
                     ON CREATE SET r.weight = referenced_by_count
-                """, title=item_with_underscores['title'], 
-                    journal_ref=item_with_underscores.get('journal_ref'), 
-                    PublicationType=item_with_underscores.get('PublicationType'), 
+                """, title=item_with_underscores['title'],
+                    journal_ref=item_with_underscores.get('journal_ref'),
+                    PublicationType=item_with_underscores.get('PublicationType'),
                     ReferencedByCount=item_with_underscores.get('ReferencedByCount'))
 
     driver.close()
@@ -366,6 +400,15 @@ load_and_start_pipelines_task = PythonOperator(
     dag=dag,
 )
 
+create_postgres_tables_task = PythonOperator(
+    task_id=f'create_postgres_tables',
+    python_callable=create_postgres_tables,
+    provide_context=True,
+    dag=dag,
+)
+
+file_tasks = []
+
 # Define tasks for each file
 for file_name in os.listdir('/app/raw_data'):
     if file_name.startswith('chunk') and file_name.endswith('.json'):
@@ -390,13 +433,6 @@ for file_name in os.listdir('/app/raw_data'):
             op_kwargs={'file_name': file_name},
             dag=dag,
         )
-        create_postgres_tables_task = PythonOperator(
-            task_id=f'create_postgres_tables_{file_name}',
-            python_callable=create_postgres_tables,
-            provide_context=True,
-            op_kwargs={'file_name': file_name},
-            dag=dag,
-        )
         save_to_postgres_task = PythonOperator(
             task_id=f'save_to_postgres_{file_name}',
             python_callable=save_to_postgres,
@@ -413,5 +449,7 @@ for file_name in os.listdir('/app/raw_data'):
         )
 
         # Set up the task dependencies
-        load_and_start_pipelines_task >> filter_publications_task >> augment_with_categories_task >> augment_with_citations_task >> create_postgres_tables_task >> save_to_postgres_task >> save_to_neo4j_task
+        file_task = filter_publications_task >> augment_with_categories_task >> augment_with_citations_task >> save_to_postgres_task >> save_to_neo4j_task
+        file_tasks.append(file_task)
 
+load_and_start_pipelines_task >> create_postgres_tables_task >> file_tasks
