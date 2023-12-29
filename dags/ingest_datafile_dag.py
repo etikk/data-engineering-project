@@ -7,6 +7,8 @@ import pandas as pd
 import requests
 # import logging
 import psycopg2
+from neo4j import GraphDatabase
+from datetime import datetime, timedelta
 
 def load_and_start_pipelines(**kwargs):
     raw_data_path = '/app/raw_data'
@@ -265,6 +267,76 @@ def save_to_postgres(**kwargs):
     cur.close()
     conn.close()
 
+def save_to_neo4j(**kwargs):
+    uri = "bolt://neo4j:7687"  # Replace with your Neo4j instance URI
+    user = "neo4j"  # Default username for Neo4j
+    password = os.getenv("NEO4J_PASSWORD")
+
+    driver = GraphDatabase.driver(uri, auth=(user, password))
+
+    json_file_path = os.path.join('/app/temp_data', kwargs['file_name'].replace('.json', '_temp.json'))
+
+    try:
+        with open(json_file_path) as f:
+            data = [json.loads(line) for line in f]
+    except FileNotFoundError:
+        print("The file was not found.")
+        return
+
+    data = data[:100]  # For testing purposes
+
+    with driver.session() as session:
+        for item in data:
+            item_with_underscores = {key.replace('-', '_'): value for key, value in item.items()}
+
+            if 'authors_parsed' in item_with_underscores:
+                session.run("""
+                    UNWIND $authors_parsed AS author
+                    MERGE (c:Author {FirstName: author[1], LastName: author[0], Name: author[0] + ' ' + author[1]})
+                    MERGE (b:Title {Title: $title})
+                    MERGE (c)-[:AUTHORED]->(b)
+                """, title=item_with_underscores['title'], authors_parsed=item_with_underscores['authors_parsed'])
+
+            if 'submitter' in item_with_underscores:
+                session.run("""
+                    MERGE (c:Author {LastName: $submitter, FirstName: $submitter, Name: $submitter})
+                    MERGE (b:Title {Title: $title})
+                    MERGE (c)-[:SUBMITTED]->(b)
+                """, title=item_with_underscores['title'], submitter=item_with_underscores['submitter'])
+
+            if 'Category_List' in item_with_underscores:
+                session.run("""
+                    MERGE (b:Title {Title: $title})
+                    WITH b, $Category_List AS categories
+                    UNWIND categories AS category
+                    MERGE (d:Category_List {Category_List: category}) 
+                    MERGE (b)-[:IS_CATEGORIZED_AS]->(d)
+                """, title=item_with_underscores['title'], Category_List=item_with_underscores['Category_List'])
+
+            if 'Disciplines' in item_with_underscores:
+                session.run("""
+                    MERGE (b:Title {Title: $title})
+                    WITH b, $Disciplines AS disciplines
+                    UNWIND disciplines AS discipline
+                    MERGE (f:Discipline {Discipline: discipline})
+                    MERGE (b)-[:IS_IN_DISCIPLINE]->(f)
+                """, title=item_with_underscores['title'], Disciplines=item_with_underscores['Disciplines'])
+
+            if 'journal_ref' in item_with_underscores:
+                session.run("""
+                    MERGE (b:Title {Title: $title})
+                    WITH b, $journal_ref AS journal_ref, $PublicationType AS publication_type, $ReferencedByCount AS referenced_by_count
+                    MERGE (e:Journal_Reference {Journal_Reference: coalesce(journal_ref, 'Unknown'), Publication_Type: coalesce(publication_type, 'Unknown')})
+                    MERGE (b)-[r:Referenced_In_Journal]->(e)
+                    ON CREATE SET r.weight = referenced_by_count
+                """, title=item_with_underscores['title'], 
+                    journal_ref=item_with_underscores.get('journal_ref'), 
+                    PublicationType=item_with_underscores.get('PublicationType'), 
+                    ReferencedByCount=item_with_underscores.get('ReferencedByCount'))
+
+    driver.close()
+
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -329,7 +401,14 @@ for file_name in os.listdir('/app/raw_data'):
             op_kwargs={'file_name': file_name},
             dag=dag,
         )
+        save_to_neo4j_task = PythonOperator(
+            task_id=f'save_to_neo4j_{file_name}',
+            python_callable=save_to_neo4j,
+            provide_context=True,
+            op_kwargs={'file_name': file_name},
+            dag=dag,
+        )
 
         # Set up the task dependencies
-        load_and_start_pipelines_task >> filter_publications_task >> augment_with_categories_task >> augment_with_citations_task >> create_postgres_tables_task >> save_to_postgres_task
+        load_and_start_pipelines_task >> filter_publications_task >> augment_with_categories_task >> augment_with_citations_task >> create_postgres_tables_task >> save_to_postgres_task >> save_to_neo4j_task
 
