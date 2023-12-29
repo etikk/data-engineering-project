@@ -5,7 +5,8 @@ import os
 import json
 import pandas as pd
 import requests
-import logging
+# import logging
+import psycopg2
 
 def load_and_start_pipelines(**kwargs):
     raw_data_path = '/app/raw_data'
@@ -115,6 +116,166 @@ def augment_with_citations(**kwargs):
         print(f"Error augmenting data for {input_json_path}: {str(e)}")
         os.rename(input_json_path, output_json_path)
 
+def create_postgres_tables():
+    # Set up database connection
+    dbname = os.getenv("POSTGRES_DB")
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    host = "db"  # Hostname for the database, change if necessary
+    port = "5432"  # Port for the database, change if necessary
+
+    # Connect to the database
+    conn = psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
+    cur = conn.cursor()
+
+    # Create tables
+    # Create the article table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS article (
+            article_id SERIAL PRIMARY KEY,
+            title TEXT,
+            abstract TEXT,
+            update_date DATE
+        );
+    """)
+
+    # Create the author table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS author (
+            author_id SERIAL PRIMARY KEY,
+            full_name TEXT,
+            is_submitter BOOLEAN
+        );
+    """)
+
+    # Create the reference table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS reference (
+            reference_id SERIAL PRIMARY KEY,
+            journal_ref TEXT,
+            reference_type TEXT
+        );
+    """)
+
+    # Create the subcategory table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS subcategory (
+            subcategory_id SERIAL PRIMARY KEY,
+            subcategory TEXT,
+            main_category TEXT
+        );
+    """)
+
+    # Create the publications table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS publications (
+            publication_id SERIAL PRIMARY KEY,
+            article_id INTEGER REFERENCES article(article_id),
+            author_id INTEGER REFERENCES author(author_id),
+            reference_count INTEGER
+        );
+    """)
+
+    # Create the version table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS version (
+        version_id SERIAL PRIMARY KEY,
+        creation_date DATE,
+        version_number SMALLINT
+    )
+    """)
+
+    # Commit changes and close the connection
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def save_to_postgres(**kwargs):
+    json_file_path = os.path.join('/app/temp_data', kwargs['file_name'].replace('.json', '_temp.json'))
+
+    # Set up database connection
+    dbname = os.getenv("POSTGRES_DB")
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    host = "db"
+    port = "5432"
+
+    conn = psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
+    cur = conn.cursor()
+
+    try:
+        with open(json_file_path, 'r') as file:
+            for line in file:
+                try:
+                    item = json.loads(line)
+
+                    # Define the expected keys
+                    article_keys = ['title', 'abstract', 'update_date']
+                    author_keys = ['full_name', 'is_submitter']
+                    publication_keys = ['article_id', 'author_id', 'reference_count']
+                    subcategory_keys = ['subcategory', 'main_category']
+                    reference_keys = ['journal_ref', 'reference_type']
+                    version_keys = ['creation_date', 'version_number']
+
+                    # Insert data into each table
+                    # Prepare data for 'article' table
+                    article_data = {key: item.get(key) for key in article_keys}
+                    # Insert data into 'article' table and get the generated 'article_id'
+                    cur.execute("""
+                        INSERT INTO article (title, abstract, update_date) VALUES (%s, %s, %s) RETURNING article_id;
+                    """, (article_data['title'], article_data['abstract'], article_data['update_date']))
+                    article_id = cur.fetchone()[0]
+
+                    # Insert data into the 'author' table and get the generated 'author_id'
+                    for author in item.get('authors_parsed', []):
+                        author_data = {key: author.get(key) for key in author_keys}
+                        full_name = " ".join(author)
+                        is_submitter = (full_name == item.get('submitter'))
+                        cur.execute("""
+                            INSERT INTO author (full_name, is_submitter) VALUES (%s, %s) RETURNING author_id;
+                        """, (full_name, is_submitter))
+                        author_id = cur.fetchone()[0]
+
+                        # Insert data into the 'publications' table
+                        publication_data = {key: item.get(key) for key in publication_keys}
+                        publication_data['article_id'] = article_id
+                        publication_data['author_id'] = author_id
+                        cur.execute("""
+                            INSERT INTO publications (article_id, author_id, reference_count) VALUES (%s, %s, %s);
+                        """, (publication_data['article_id'], publication_data['author_id'], publication_data['reference_count']))
+
+                    # Insert data into the 'subcategory' table
+                    for category in item.get('Category_List', []):
+                        cur.execute("""
+                            INSERT INTO subcategory (subcategory, main_category) VALUES (%s, %s) RETURNING subcategory_id;
+                        """, (category, item.get('Disciplines')))
+                        subcategory_id = cur.fetchone()[0]
+
+                    # Insert data into the 'reference' table
+                    reference_data = {key: item.get(key) for key in reference_keys}
+                    cur.execute("""
+                        INSERT INTO reference (journal_ref, reference_type) VALUES (%s, %s);
+                    """, (reference_data['journal_ref'], reference_data['reference_type']))
+
+                    # Insert into 'version' table
+                    for version in item.get('versions', []):
+                        version_data = {key: version.get(key) for key in version_keys}
+                        cur.execute("""
+                            INSERT INTO version (creation_date, version_number) VALUES (%s, %s) RETURNING version_id;
+                        """, (version_data['creation_date'], version_data['version_number']))
+                        version_id = cur.fetchone()[0]
+
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing JSON line: {e}")
+                    continue
+
+    except Exception as e:
+        print(f"Error reading file or inserting into database: {e}")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -165,7 +326,21 @@ for file_name in os.listdir('/app/raw_data'):
             op_kwargs={'file_name': file_name},
             dag=dag,
         )
+        create_postgres_tables_task = PythonOperator(
+            task_id=f'create_postgres_tables_{file_name}',
+            python_callable=create_postgres_tables,
+            provide_context=True,
+            op_kwargs={'file_name': file_name},
+            dag=dag,
+        )
+        save_to_postgres_task = PythonOperator(
+            task_id=f'save_to_postgres_{file_name}',
+            python_callable=save_to_postgres,
+            provide_context=True,
+            op_kwargs={'file_name': file_name},
+            dag=dag,
+        )
 
         # Set up the task dependencies
-        load_and_start_pipelines_task >> filter_publications_task >> augment_with_categories_task >> augment_with_citations_task
+        load_and_start_pipelines_task >> filter_publications_task >> augment_with_categories_task >> augment_with_citations_task >> create_postgres_tables_task >> save_to_postgres_task
 
