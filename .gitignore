@@ -1,4 +1,5 @@
 # .env ADD THIS IN PRODUCTION
+temp_data/
 logs/
 *.pyc
 __pycache__/
