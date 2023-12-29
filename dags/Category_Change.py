@@ -4,7 +4,8 @@ import os
 import json
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime
+from datetime import datetime, timedelta  
+
 
 def process_json_files():
     input_folder = '/path/to/airflow/Enriched_Data'
@@ -84,6 +85,17 @@ for i,json_file in enumerate(json_files):
 #    json.dump(results_df, f)
 #print(grouped_df[grouped_df['Broader_Categories'].apply(lambda x: len(x) > 1)])
 
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2022, 1, 1),
+    'email': [os.getenv("AIRFLOW_EMAIL")],
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
 
 # Define DAG
 dag = DAG('category_enrichment', description='Enrich JSON files with Category information',
