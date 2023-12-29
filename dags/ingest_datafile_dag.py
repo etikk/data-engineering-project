@@ -22,7 +22,7 @@ def filter_publications(**kwargs):
         data = json.load(file)
 
     # Use only part of the data for testing
-    data = data[:100]
+    # data = data[:100]
 
     filtered_data = [item for item in data if len(item.get('title', '').split()) > 1 and item.get('authors')]
     for item in filtered_data:
@@ -181,7 +181,7 @@ def create_postgres_tables():
     CREATE TABLE IF NOT EXISTS version (
         version_id SERIAL PRIMARY KEY,
         creation_date DATE,
-        version_number SMALLINT
+        version_number TEXT
     )
     """)
 
@@ -211,7 +211,8 @@ def save_to_postgres(**kwargs):
 
                     # Check and insert for article
                     cur.execute("SELECT article_id FROM article WHERE title = %s;", (item.get('title'),))
-                    if cur.fetchone() is None:
+                    article_id = cur.fetchone()
+                    if article_id is None:
                         cur.execute("INSERT INTO article (title, abstract, update_date) VALUES (%s, %s, %s) RETURNING article_id;",
                                     (item.get('title'), item.get('abstract'), item.get('update_date')))
                         article_id = cur.fetchone()[0]
@@ -219,7 +220,8 @@ def save_to_postgres(**kwargs):
                     # Check and insert for each author
                     for author in item.get('authors_parsed', []):
                         cur.execute("SELECT author_id FROM author WHERE full_name = %s;", (" ".join(author),))
-                        if cur.fetchone() is None:
+                        author_id = cur.fetchone()
+                        if author_id is None:
                             cur.execute("INSERT INTO author (full_name, is_submitter) VALUES (%s, %s) RETURNING author_id;",
                                         (" ".join(author), author[0] == item.get('submitter')))
                             author_id = cur.fetchone()[0]
@@ -234,6 +236,7 @@ def save_to_postgres(**kwargs):
                     # Check and insert for subcategory
                     for category in item.get('Category_List', []):
                         cur.execute("SELECT subcategory_id FROM subcategory WHERE subcategory = %s;", (category,))
+
                         if cur.fetchone() is None:
                             cur.execute("INSERT INTO subcategory (subcategory, main_category) VALUES (%s, %s) RETURNING subcategory_id;",
                                         (category, item.get('Disciplines')))
