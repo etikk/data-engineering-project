@@ -24,7 +24,7 @@ def filter_publications(**kwargs):
         data = json.load(file)
 
     # Use only part of the data for testing
-    # data = data[:100]
+    # data = data[:1000]
 
     filtered_data = [item for item in data if len(item.get('title', '').split()) > 1 and item.get('authors')]
     for item in filtered_data:
@@ -248,32 +248,32 @@ def save_to_postgres(**kwargs):
                     # Check and insert for article
                     cur.execute("SELECT article_id FROM article WHERE title = %s;", (item.get('title'),))
                     article_id = cur.fetchone()
-                    if article_id is None:
+                    if not article_id:
                         cur.execute("INSERT INTO article (title, abstract, update_date) VALUES (%s, %s, %s) RETURNING article_id;",
                                     (item.get('title'), item.get('abstract'), item.get('update_date')))
-                        article_id = cur.fetchone()[0]
+                        article_id = cur.fetchone()
 
                     # Check and insert for each author
                     for author in item.get('authors_parsed', []):
                         cur.execute("SELECT author_id FROM author WHERE full_name = %s;", (" ".join(author),))
                         author_id = cur.fetchone()
-                        if author_id is None:
+                        if not author_id:
                             cur.execute("INSERT INTO author (full_name, is_submitter) VALUES (%s, %s) RETURNING author_id;",
                                         (" ".join(author), author[0] == item.get('submitter')))
-                            author_id = cur.fetchone()[0]
+                            author_id = cur.fetchone()
 
                         # Check and insert for publications
                         cur.execute("SELECT publication_id FROM publications WHERE article_id = %s AND author_id = %s;",
-                                    (article_id, author_id))
-                        if cur.fetchone() is None:
+                                    (article_id[0], author_id[0]))
+                        if not cur.fetchone():
                             cur.execute("INSERT INTO publications (article_id, author_id, reference_count) VALUES (%s, %s, %s);",
-                                        (article_id, author_id, item.get('ReferencedByCount')))
+                                        (article_id[0], author_id[0], item.get('ReferencedByCount')))
 
                     # Check and insert for subcategory
                     for category in item.get('Category_List', []):
                         cur.execute("SELECT subcategory_id FROM subcategory WHERE subcategory = %s;", (category,))
 
-                        if cur.fetchone() is None:
+                        if not cur.fetchone():
                             cur.execute("INSERT INTO subcategory (subcategory, main_category) VALUES (%s, %s) RETURNING subcategory_id;",
                                         (category, item.get('Disciplines')))
                             subcategory_id = cur.fetchone()[0]
@@ -298,7 +298,9 @@ def save_to_postgres(**kwargs):
                     continue
 
     except Exception as e:
-        print(f"Error reading file or inserting into database: {e}")
+        # print stacktrace
+        print(f"Error reading file or inserting into database: {e.with_traceback()}")
+        raise e
 
     conn.commit()
     cur.close()
@@ -390,7 +392,8 @@ dag = DAG(
     default_args=default_args,
     description='Ingest and process multiple JSON files',
     schedule_interval=timedelta(days=1),
-    catchup=False
+    catchup=False,
+    concurrency=4,
 )
 
 load_and_start_pipelines_task = PythonOperator(
