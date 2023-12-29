@@ -209,61 +209,50 @@ def save_to_postgres(**kwargs):
                 try:
                     item = json.loads(line)
 
-                    # Define the expected keys
-                    article_keys = ['title', 'abstract', 'update_date']
-                    author_keys = ['full_name', 'is_submitter']
-                    publication_keys = ['article_id', 'author_id', 'reference_count']
-                    subcategory_keys = ['subcategory', 'main_category']
-                    reference_keys = ['journal_ref', 'reference_type']
-                    version_keys = ['creation_date', 'version_number']
+                    # Check and insert for article
+                    cur.execute("SELECT article_id FROM article WHERE title = %s;", (item.get('title'),))
+                    if cur.fetchone() is None:
+                        cur.execute("INSERT INTO article (title, abstract, update_date) VALUES (%s, %s, %s) RETURNING article_id;",
+                                    (item.get('title'), item.get('abstract'), item.get('update_date')))
+                        article_id = cur.fetchone()[0]
 
-                    # Insert data into each table
-                    # Prepare data for 'article' table
-                    article_data = {key: item.get(key) for key in article_keys}
-                    # Insert data into 'article' table and get the generated 'article_id'
-                    cur.execute("""
-                        INSERT INTO article (title, abstract, update_date) VALUES (%s, %s, %s) RETURNING article_id;
-                    """, (article_data['title'], article_data['abstract'], article_data['update_date']))
-                    article_id = cur.fetchone()[0]
-
-                    # Insert data into the 'author' table and get the generated 'author_id'
+                    # Check and insert for each author
                     for author in item.get('authors_parsed', []):
-                        author_data = {key: author.get(key) for key in author_keys}
-                        full_name = " ".join(author)
-                        is_submitter = (full_name == item.get('submitter'))
-                        cur.execute("""
-                            INSERT INTO author (full_name, is_submitter) VALUES (%s, %s) RETURNING author_id;
-                        """, (full_name, is_submitter))
-                        author_id = cur.fetchone()[0]
+                        cur.execute("SELECT author_id FROM author WHERE full_name = %s;", (" ".join(author),))
+                        if cur.fetchone() is None:
+                            cur.execute("INSERT INTO author (full_name, is_submitter) VALUES (%s, %s) RETURNING author_id;",
+                                        (" ".join(author), author[0] == item.get('submitter')))
+                            author_id = cur.fetchone()[0]
 
-                        # Insert data into the 'publications' table
-                        publication_data = {key: item.get(key) for key in publication_keys}
-                        publication_data['article_id'] = article_id
-                        publication_data['author_id'] = author_id
-                        cur.execute("""
-                            INSERT INTO publications (article_id, author_id, reference_count) VALUES (%s, %s, %s);
-                        """, (publication_data['article_id'], publication_data['author_id'], publication_data['reference_count']))
+                        # Check and insert for publications
+                        cur.execute("SELECT publication_id FROM publications WHERE article_id = %s AND author_id = %s;",
+                                    (article_id, author_id))
+                        if cur.fetchone() is None:
+                            cur.execute("INSERT INTO publications (article_id, author_id, reference_count) VALUES (%s, %s, %s);",
+                                        (article_id, author_id, item.get('ReferencedByCount')))
 
-                    # Insert data into the 'subcategory' table
+                    # Check and insert for subcategory
                     for category in item.get('Category_List', []):
-                        cur.execute("""
-                            INSERT INTO subcategory (subcategory, main_category) VALUES (%s, %s) RETURNING subcategory_id;
-                        """, (category, item.get('Disciplines')))
-                        subcategory_id = cur.fetchone()[0]
+                        cur.execute("SELECT subcategory_id FROM subcategory WHERE subcategory = %s;", (category,))
+                        if cur.fetchone() is None:
+                            cur.execute("INSERT INTO subcategory (subcategory, main_category) VALUES (%s, %s) RETURNING subcategory_id;",
+                                        (category, item.get('Disciplines')))
+                            subcategory_id = cur.fetchone()[0]
 
-                    # Insert data into the 'reference' table
-                    reference_data = {key: item.get(key) for key in reference_keys}
-                    cur.execute("""
-                        INSERT INTO reference (journal_ref, reference_type) VALUES (%s, %s);
-                    """, (reference_data['journal_ref'], reference_data['reference_type']))
+                    # Check and insert for reference
+                    cur.execute("SELECT reference_id FROM reference WHERE journal_ref = %s;", (item.get('journal-ref'),))
+                    if cur.fetchone() is None:
+                        cur.execute("INSERT INTO reference (journal_ref, reference_type) VALUES (%s, %s);",
+                                    (item.get('journal-ref'), item.get('publication_type')))
 
-                    # Insert into 'version' table
+                    # Check and insert for version
                     for version in item.get('versions', []):
-                        version_data = {key: version.get(key) for key in version_keys}
-                        cur.execute("""
-                            INSERT INTO version (creation_date, version_number) VALUES (%s, %s) RETURNING version_id;
-                        """, (version_data['creation_date'], version_data['version_number']))
-                        version_id = cur.fetchone()[0]
+                        cur.execute("SELECT version_id FROM version WHERE creation_date = %s AND version_number = %s;",
+                                    (version.get('created'), version.get('version')))
+                        if cur.fetchone() is None:
+                            cur.execute("INSERT INTO version (creation_date, version_number) VALUES (%s, %s) RETURNING version_id;",
+                                        (version.get('created'), version.get('version')))
+                            version_id = cur.fetchone()[0]
 
                 except json.JSONDecodeError as e:
                     print(f"Error parsing JSON line: {e}")
