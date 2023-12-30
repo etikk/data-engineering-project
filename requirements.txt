@@ -1,1 +1,7 @@
 neo4j
+pandas
+numpy
+apache-airflow
+psycopg2
+tqdm
+aiohttp

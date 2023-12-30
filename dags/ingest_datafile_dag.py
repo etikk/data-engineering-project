@@ -115,7 +115,7 @@ def augment_with_citations(**kwargs):
             json.dump(data, outfile)
 
     except Exception as e:
-        print(f"Error augmenting data for {input_json_path}: {str(e)}")
+        print(f"Error augmenting data for {input_json_path}: {e.with_traceback()}")
         os.rename(input_json_path, output_json_path)
 
 def create_postgres_tables():
@@ -137,6 +137,7 @@ def create_postgres_tables():
             article_id SERIAL PRIMARY KEY,
             title TEXT,
             abstract TEXT,
+            doi TEXT,
             update_date DATE
         );
     """)
@@ -166,6 +167,7 @@ def create_postgres_tables():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS reference (
             reference_id SERIAL PRIMARY KEY,
+            article_id INTEGER REFERENCES article(article_id),
             journal_ref TEXT,
             reference_type TEXT
         );
@@ -174,6 +176,7 @@ def create_postgres_tables():
     # add index to reference journal_ref
     cur.execute("""
         CREATE INDEX IF NOT EXISTS reference_journal_ref_idx ON reference (journal_ref);
+        CREATE INDEX IF NOT EXISTS reference_article_id_idx ON reference (article_id);
     """)
 
 
@@ -210,6 +213,7 @@ def create_postgres_tables():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS version (
         version_id SERIAL PRIMARY KEY,
+        author_id INTEGER REFERENCES author(author_id),
         creation_date DATE,
         version_number TEXT
     )
@@ -293,6 +297,9 @@ def save_to_postgres(**kwargs):
                                         (version.get('created'), version.get('version')))
                             version_id = cur.fetchone()[0]
 
+                    # finish transaction
+                    conn.commit()
+
                 except json.JSONDecodeError as e:
                     print(f"Error parsing JSON line: {e}")
                     continue
@@ -322,7 +329,7 @@ def save_to_neo4j(**kwargs):
         print("The file was not found.")
         return
 
-    data = data[:100]  # For testing purposes
+    data = data[:1000]  # For testing purposes
 
     with driver.session() as session:
         for item in data:
@@ -393,7 +400,7 @@ dag = DAG(
     description='Ingest and process multiple JSON files',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    concurrency=4,
+    concurrency=6,
 )
 
 load_and_start_pipelines_task = PythonOperator(
