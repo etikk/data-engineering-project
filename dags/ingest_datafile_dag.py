@@ -26,7 +26,7 @@ def filter_publications(**kwargs):
     # Use only part of the data for testing
     # data = data[:1000]
 
-    filtered_data = [item for item in data if len(item.get('title', '').split()) > 1 and item.get('authors')]
+    filtered_data = [item for item in data if len(item.get('title', '')) > 1 and item.get('authors')]
     for item in filtered_data:
         item.pop('abstract', None)
 
@@ -115,7 +115,7 @@ def augment_with_citations(**kwargs):
             json.dump(data, outfile)
 
     except Exception as e:
-        print(f"Error augmenting data for {input_json_path}: {e.with_traceback()}")
+        print(f"Error augmenting data for {input_json_path}: {e}")
         os.rename(input_json_path, output_json_path)
 
 def create_postgres_tables():
@@ -137,7 +137,7 @@ def create_postgres_tables():
             article_id SERIAL PRIMARY KEY,
             title TEXT,
             abstract TEXT,
-            doi TEXT,
+            doi TEXT NULL DEFAULT NULL,
             update_date DATE
         );
     """)
@@ -306,8 +306,7 @@ def save_to_postgres(**kwargs):
 
     except Exception as e:
         # print stacktrace
-        print(f"Error reading file or inserting into database: {e.with_traceback()}")
-        raise e
+        print(f"Error reading file or inserting into database: {e}")
 
     conn.commit()
     cur.close()
