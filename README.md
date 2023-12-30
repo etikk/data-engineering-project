@@ -93,9 +93,8 @@ This project is part of the Data Engineering course, focused on designing and im
 - Run the initialization script (`init_airflow.sh` or `init_airflow.bat` depending on the platform) to set up their local Airflow environment.
 - Run 'docker-compose up --build -d' to build the new containers and start Airflow.
 
-### Next Steps
+### PDF report
 
-- Begin developing the data pipeline and implementing the database schemas.
-- Regularly pull updates from the repository as the project progresses.
+The PDF report is also found in the root of this repo. 
 
 ---
